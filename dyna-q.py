@@ -1,6 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from itertools import product
+from collections import defaultdict
+import random
 
 class Env:
     def __init__(self,environment,start,goal) -> None:
@@ -34,8 +36,10 @@ class Env:
         # check if next state is inside boundary or is not an obstacle 
 
         if nxt_state in map(tuple,self.states) and self.environment[state] == 0:
+            self.state = nxt_state
             return nxt_state
         else:
+            self.state = state
             return state 
         
     def reward(self,state,action):
@@ -45,6 +49,8 @@ class Env:
             return 1 
         else:
             return 0
+    def transition(self,state,action):
+        return self.reward(state,action),self.next_state(state,action)
     def reset(self):
         # Whenever the robot transitioned to terminal state , reset the position to start position 
         self.state = self.start
@@ -58,12 +64,12 @@ class DynaQ:
         pass
     def initialize(self):
         Q = {}
-        Model = {}
+        Model = defaultdict(dict)
         for state in self.env.states:
             state = tuple(state)
             #checking is that action can be taken because of the boundaries 
             Q[state] = {action:0 for action in self.env.actions}# if self.env.tuple_sum(state,action) in map(tuple,self.env.states) }
-            Model[state] = {action:(self.env.next_state(state,action),self.env.reward(state,action)) for action in self.env.actions}
+            # Model[state] = {action:(0,None) for action in self.env.actions} # initially we do not know the model
         return Q,Model
     
     def dynaQ(self):
@@ -71,8 +77,21 @@ class DynaQ:
         # print(Model)
         # Loop Forever
         while True:
-            S = self.env.state # (a) S current (nonterminal) state
-            A = self.epsilon_greedy(S,Q)# (b) A "-greedy(S,Q)
+            S = self.env.state # (a) S current (non-terminal) state
+            A = self.epsilon_greedy(S,Q) # (b) A "-greedy(S,Q)
+            R,S_ = self.env.transition(S,A)# (c) Take action A; observe resultant reward, R, and state, S_
+            Q[S][A] = Q[S][A] + self.alpha*(R+self.gamma*max(Q[S_].values())-Q[S][A])# (d) Update Q like you do in Q-learning
+            Model[S][A] =R,S_ # (e) Model(S,A) R, S0 (assuming deterministic environment)
+            #(f) Loop repeat n times:
+            for episode in range(self.n):
+                S = random.sample(Model.keys(),1)[0] # S - random previously observed state
+                A = random.sample(Model[S].keys(),1)[0] # A -  random action previously taken in S
+                R,S_ = Model[S][A] # R, S_ from Model(S,A)
+                Q[S][A] = Q[S][A] + self.alpha*(R+self.gamma*max(Q[S_].values())-Q[S][A])# Update Q like you do in Q-learning
+            if self.env.is_terminal(self.env.state):
+                break
+        return Q, Model
+
     def epsilon_greedy(self,S,Q):
         if np.random.random()<=self.epsilon: 
                 # Explore 
