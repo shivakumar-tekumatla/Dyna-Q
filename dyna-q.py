@@ -35,7 +35,7 @@ class Env:
         nxt_state = self.tuple_sum(state,action)
         # check if next state is inside boundary or is not an obstacle 
 
-        if nxt_state in map(tuple,self.states) and self.environment[state] == 0:
+        if (nxt_state in map(tuple,self.states)) and (self.environment[nxt_state] == 0):
             self.state = nxt_state
             return nxt_state
         else:
@@ -61,6 +61,7 @@ class DynaQ:
         self.gamma = gamma
         self.alpha = alpha
         self.n = n  # number of episodes
+        self.epsilon = epsilon
         pass
     def initialize(self):
         Q = {}
@@ -74,28 +75,34 @@ class DynaQ:
     
     def dynaQ(self):
         Q,Model = self.initialize()
+        S = self.env.state # in the beginning it is same as start 
+        step = 0
         # print(Model)
         # Loop Forever
-        while True:
-            S = self.env.state # (a) S current (non-terminal) state
+        while S != self.env.goal:
+            step+=1
+            # S = self.env.state # (a) S current (non-terminal) state
             A = self.epsilon_greedy(S,Q) # (b) A "-greedy(S,Q)
             R,S_ = self.env.transition(S,A)# (c) Take action A; observe resultant reward, R, and state, S_
+            print("State",S)
+            print("Action",A)
+            S_temp = S_
             Q[S][A] = Q[S][A] + self.alpha*(R+self.gamma*max(Q[S_].values())-Q[S][A])# (d) Update Q like you do in Q-learning
             Model[S][A] =R,S_ # (e) Model(S,A) R, S0 (assuming deterministic environment)
             #(f) Loop repeat n times:
-            for episode in range(self.n):
+            for _ in range(self.n):
                 S = random.sample(Model.keys(),1)[0] # S - random previously observed state
                 A = random.sample(Model[S].keys(),1)[0] # A -  random action previously taken in S
                 R,S_ = Model[S][A] # R, S_ from Model(S,A)
                 Q[S][A] = Q[S][A] + self.alpha*(R+self.gamma*max(Q[S_].values())-Q[S][A])# Update Q like you do in Q-learning
-            if self.env.is_terminal(self.env.state):
-                break
-        return Q, Model
+            print(step,S_temp)
+            S = S_temp
+        return step
 
     def epsilon_greedy(self,S,Q):
         if np.random.random()<=self.epsilon: 
-                # Explore 
-                A = np.random.choice(list(Q[S]))
+            # Explore 
+            A = np.random.choice(list(Q[S]))
         else:
             #Exploit
             A = max(Q[S], key=Q[S].get, default=None)
@@ -107,11 +114,12 @@ def main():
     goal = (0,8)
     gamma = 0.95
     alpha = 0.1
-    epsilon = 0.01
-    n_episodes = 1000
+    epsilon = 0.1
+    n = 500 #planning steps
     env = Env(environment,start,goal)
+    # print(env.next_state((2,1),"r"))
 
-    T = DynaQ(env,gamma,alpha,n_episodes,epsilon)
+    T = DynaQ(env,gamma,alpha,n,epsilon)
     T.dynaQ()
 
 
