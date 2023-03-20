@@ -10,10 +10,15 @@ The following 6X9 maze is used as environment.
 # Hyper parameters 
 
 start = (2,0)
+
 goal = (0,8)
+
 gamma = 0.95
+
 alpha = 0.1
+
 epsilon = 0.1
+
 # Output
 With different number of planning steps, the number of steps required for each episode is given by the following figure.
 
