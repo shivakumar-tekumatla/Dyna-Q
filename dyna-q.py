@@ -3,6 +3,10 @@ import matplotlib.pyplot as plt
 from itertools import product
 from collections import defaultdict
 import random
+import warnings
+warnings.filterwarnings('ignore')
+random.seed(10)
+np.random.seed(10)
 
 class Env:
     def __init__(self,environment,start,goal) -> None:
@@ -56,12 +60,13 @@ class Env:
         self.state = self.start
         return  self.state 
 class DynaQ:
-    def __init__(self,env,gamma,alpha,n,epsilon) -> None:
+    def __init__(self,env,gamma,alpha,n,epsilon,max_episodes =50) -> None:
         self.env = env
         self.gamma = gamma
         self.alpha = alpha
-        self.n = n  # number of episodes
+        self.n = n  # number of planning steps
         self.epsilon = epsilon
+        self.max_episodes = max_episodes # max number of episodes the simulation is run for 
         pass
     def initialize(self):
         Q = {}
@@ -75,29 +80,36 @@ class DynaQ:
     
     def dynaQ(self):
         Q,Model = self.initialize()
-        S = self.env.state # in the beginning it is same as start 
-        step = 0
-        # print(Model)
-        # Loop Forever
-        while S != self.env.goal:
-            step+=1
-            # S = self.env.state # (a) S current (non-terminal) state
-            A = self.epsilon_greedy(S,Q) # (b) A "-greedy(S,Q)
-            R,S_ = self.env.transition(S,A)# (c) Take action A; observe resultant reward, R, and state, S_
-            print("State",S)
-            print("Action",A)
-            S_temp = S_
-            Q[S][A] = Q[S][A] + self.alpha*(R+self.gamma*max(Q[S_].values())-Q[S][A])# (d) Update Q like you do in Q-learning
-            Model[S][A] =R,S_ # (e) Model(S,A) R, S0 (assuming deterministic environment)
-            #(f) Loop repeat n times:
-            for _ in range(self.n):
-                S = random.sample(Model.keys(),1)[0] # S - random previously observed state
-                A = random.sample(Model[S].keys(),1)[0] # A -  random action previously taken in S
-                R,S_ = Model[S][A] # R, S_ from Model(S,A)
-                Q[S][A] = Q[S][A] + self.alpha*(R+self.gamma*max(Q[S_].values())-Q[S][A])# Update Q like you do in Q-learning
-            print(step,S_temp)
-            S = S_temp
-        return step
+        episode = 0 
+        episodes =[i+1 for i in range(self.max_episodes)] # store episode
+        steps = []
+        while episode<self.max_episodes:
+            episode+=1
+            S = self.env.start # self.env.state # in the beginning it is same as start 
+            step = 0
+            # print(Model)
+            # Loop Forever
+            while S != self.env.goal:
+                step+=1
+                # S = self.env.state # (a) S current (non-terminal) state
+                A = self.epsilon_greedy(S,Q) # (b) A "-greedy(S,Q)
+                R,S_ = self.env.transition(S,A)# (c) Take action A; observe resultant reward, R, and state, S_
+                # print("State",S)
+                # print("Action",A)
+                S_temp = S_
+                Q[S][A] = Q[S][A] + self.alpha*(R+self.gamma*max(Q[S_].values())-Q[S][A])# (d) Update Q like you do in Q-learning
+                Model[S][A] =R,S_ # (e) Model(S,A) R, S0 (assuming deterministic environment)
+                #(f) Loop repeat n times:
+                for _ in range(self.n):
+                    S = random.sample(Model.keys(),1)[0] # S - random previously observed state
+                    A = random.sample(Model[S].keys(),1)[0] # A -  random action previously taken in S
+                    R,S_ = Model[S][A] # R, S_ from Model(S,A)
+                    Q[S][A] = Q[S][A] + self.alpha*(R+self.gamma*max(Q[S_].values())-Q[S][A])# Update Q like you do in Q-learning
+                # print(step,S_temp)
+                S = S_temp
+            steps.append(step) #steps per episode
+            # print(episode, step)
+        return episodes,steps
 
     def epsilon_greedy(self,S,Q):
         if np.random.random()<=self.epsilon: 
@@ -115,12 +127,26 @@ def main():
     gamma = 0.95
     alpha = 0.1
     epsilon = 0.1
-    n = 500 #planning steps
     env = Env(environment,start,goal)
-    # print(env.next_state((2,1),"r"))
-
+    # 0 planning steps (direct RL only)
+    n = 0 #planning steps
     T = DynaQ(env,gamma,alpha,n,epsilon)
-    T.dynaQ()
+    episodes,steps = T.dynaQ()
+    plt.plot(episodes[1:],steps[1:])
+    # 5 planning steps 
+    n = 5 #planning steps
+    T = DynaQ(env,gamma,alpha,n,epsilon)
+    episodes,steps = T.dynaQ()
+    plt.plot(episodes[1:],steps[1:])
+    # 50 planning steps 
+    n = 5 #planning steps
+    T = DynaQ(env,gamma,alpha,n,epsilon)
+    episodes,steps = T.dynaQ()
+    plt.plot(episodes[1:],steps[1:])
+    plt.legend(["0 planning steps","5 planning steps","50 planning steps"])
+    plt.xlabel("Episodes")
+    plt.ylabel("Steps per episode")
+    plt.show()
 
 
 if __name__ == "__main__":
